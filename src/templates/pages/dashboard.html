@@ -1,0 +1,379 @@
+{{define "content"}}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+    <p class="text-gray-500 mt-1">Overview of your storage statistics</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-primary-100 rounded-lg">
+                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <p class="text-2xl font-bold text-gray-800">{{.Stats.BucketCount}}</p>
+                <p class="text-sm text-gray-500">Total Buckets</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-green-100 rounded-lg">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <p class="text-2xl font-bold text-gray-800">{{.Stats.ObjectCount}}</p>
+                <p class="text-sm text-gray-500">Total Objects</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-primary-100 rounded-lg">
+                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                </svg>
+            </div>
+            <div class="ml-4 flex-1">
+                <p class="text-2xl font-bold text-gray-800">{{formatBytes .Stats.TotalSize}}</p>
+                {{if gt .Stats.QuotaBytes 0}}
+                {{$pct := percentUsed .Stats.TotalSize .Stats.QuotaBytes}}
+                <p class="text-sm text-gray-500">of {{formatBytes .Stats.QuotaBytes}} quota ({{$pct}}%)</p>
+                <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                    <div class="h-2 rounded-full {{if ge $pct 90}}bg-red-500{{else if ge $pct 75}}bg-yellow-500{{else}}bg-primary{{end}}" style="width: {{$pct}}%"></div>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">{{formatBytes .Stats.QuotaRemaining}} remaining</p>
+                {{else}}
+                <p class="text-sm text-gray-500">Total Storage (Unlimited)</p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-orange-100 rounded-lg">
+                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <p class="text-2xl font-bold text-gray-800">{{.Stats.ShareCount}}</p>
+                <p class="text-sm text-gray-500">Active Shares</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- S3 API Access Section -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center">
+            <div class="p-2 bg-blue-100 rounded-lg">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                </svg>
+            </div>
+            <h2 class="text-lg font-semibold text-gray-800 ml-3">S3 API Access</h2>
+        </div>
+        {{if not .User.IsBootstrap}}
+        <button onclick="Modal.show('setOwnS3CredentialsModal')" class="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary-hover">
+            {{if .User.S3AccessKeyID}}Update{{else}}Set{{end}} Credentials
+        </button>
+        {{end}}
+    </div>
+    {{if .User.S3AccessKeyID}}
+    <p class="text-sm text-gray-600 mb-4">Use these credentials to access your buckets via the S3 API (boto3, AWS CLI, etc.)</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Access Key ID</label>
+            <div class="flex items-center gap-2">
+                <code class="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded text-sm font-mono text-gray-800">{{.User.S3AccessKeyID}}</code>
+                <button onclick="copyToClipboard('{{.User.S3AccessKeyID}}')" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded hover:bg-gray-50" title="Copy to clipboard">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Secret Access Key</label>
+            <div class="flex items-center gap-2">
+                <code id="secretKeyDisplay" class="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded text-sm font-mono text-gray-800">••••••••••••••••</code>
+                <button onclick="toggleSecretKeyVisibility()" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded hover:bg-gray-50" title="Show/Hide">
+                    <svg id="eyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                </button>
+                <button onclick="copySecretKey()" class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded hover:bg-gray-50" title="Copy to clipboard">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                </button>
+            </div>
+            {{if .User.IsBootstrap}}
+            <p class="text-xs text-gray-500 mt-1">Bootstrap admin credentials from environment variables.</p>
+            {{else}}
+            <p class="text-xs text-gray-500 mt-1">Keep your secret key secure. Click "Update Credentials" above to change it.</p>
+            {{end}}
+        </div>
+    </div>
+    {{else}}
+    <div class="text-center py-6">
+        <div class="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3">
+            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+            </svg>
+        </div>
+        <p class="text-gray-600 font-medium mb-1">S3 API Credentials Not Configured</p>
+        <p class="text-sm text-gray-500">{{if .User.IsBootstrap}}Bootstrap admin uses global environment credentials.{{else}}Click "Set Credentials" above to configure your S3 API access.{{end}}</p>
+    </div>
+    {{end}}
+</div>
+
+<!-- Set Own S3 Credentials Modal -->
+{{if not .User.IsBootstrap}}
+<div id="setOwnS3CredentialsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">{{if .User.S3AccessKeyID}}Update{{else}}Set{{end}} S3 Credentials</h3>
+            <p class="text-sm text-gray-500 mt-1">Configure your S3 API access credentials</p>
+        </div>
+        <form id="setOwnS3CredentialsForm" onsubmit="event.preventDefault(); saveOwnS3Credentials();">
+            <div class="px-6 py-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Access Key ID</label>
+                    <input type="text" id="ownS3AccessKeyID" name="access_key_id" required
+                        value="{{.User.S3AccessKeyID}}"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="AKIAIOSFODNN7EXAMPLE">
+                    <p class="text-xs text-gray-500 mt-1">This will be your username for S3 API access</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Secret Access Key</label>
+                    <input type="password" id="ownS3SecretAccessKey" name="secret_access_key" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">
+                    <p class="text-xs text-gray-500 mt-1">Store this securely - it won't be shown again</p>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div class="flex">
+                        <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="text-xs text-blue-800">
+                            <p class="font-medium mb-1">Important:</p>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>Use these credentials with boto3, AWS CLI, or any S3-compatible client</li>
+                                <li>Keep your secret access key secure</li>
+                                <li>You can update these anytime</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button type="button" onclick="Modal.hide('setOwnS3CredentialsModal')"
+                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover">
+                    Save Credentials
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}
+
+<!-- Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Storage by Bucket</h2>
+        {{if .Stats.Buckets}}
+        <div class="relative" style="height: 300px;">
+            <canvas id="storageChart"></canvas>
+        </div>
+        {{else}}
+        <div class="flex items-center justify-center h-64 text-gray-500">
+            <div class="text-center">
+                <svg class="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                <p>No buckets yet</p>
+            </div>
+        </div>
+        {{end}}
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Objects by Bucket</h2>
+        {{if .Stats.Buckets}}
+        <div class="relative" style="height: 300px;">
+            <canvas id="objectsChart"></canvas>
+        </div>
+        {{else}}
+        <div class="flex items-center justify-center h-64 text-gray-500">
+            <div class="text-center">
+                <svg class="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                <p>No buckets yet</p>
+            </div>
+        </div>
+        {{end}}
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Files by Type</h2>
+        {{if .ContentTypeStats}}
+        <div class="relative" style="height: 300px;">
+            <canvas id="contentTypeChart"></canvas>
+        </div>
+        {{else}}
+        <div class="flex items-center justify-center h-64 text-gray-500">
+            <div class="text-center">
+                <svg class="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <p>No files yet</p>
+            </div>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<!-- Bucket List Table -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-800">Bucket Details</h2>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead>
+                <tr>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">Name</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">Objects</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">Size</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">Created</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Stats.Buckets}}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        <a href="/ui/buckets/{{.Name}}/objects" class="text-primary hover:text-primary-dark font-medium">
+                            {{.Name}}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100">{{.ObjectCount}}</td>
+                    <td class="px-6 py-4 border-b border-gray-100">{{formatBytes .TotalSize}}</td>
+                    <td class="px-6 py-4 border-b border-gray-100">{{formatDate .CreationDate}}</td>
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        <a href="/ui/buckets/{{.Name}}/objects" class="text-primary hover:text-primary-dark text-sm">Browse</a>
+                    </td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        No buckets found. <a href="/ui/buckets" class="text-primary hover:text-primary-dark">Create one</a>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+const SECRET_KEY = '{{.User.S3SecretAccessKey}}';
+let secretKeyVisible = false;
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        Toast.success('Copied to clipboard');
+    }, function(err) {
+        Toast.error('Failed to copy');
+    });
+}
+
+function toggleSecretKeyVisibility() {
+    const display = document.getElementById('secretKeyDisplay');
+    const eyeIcon = document.getElementById('eyeIcon');
+
+    secretKeyVisible = !secretKeyVisible;
+
+    if (secretKeyVisible) {
+        display.textContent = SECRET_KEY;
+        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>';
+    } else {
+        display.textContent = '••••••••••••••••';
+        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>';
+    }
+}
+
+function copySecretKey() {
+    copyToClipboard(SECRET_KEY);
+}
+
+function saveOwnS3Credentials() {
+    const accessKeyID = document.getElementById('ownS3AccessKeyID').value.trim();
+    const secretAccessKey = document.getElementById('ownS3SecretAccessKey').value.trim();
+
+    if (!accessKeyID || !secretAccessKey) {
+        Toast.error('Both Access Key ID and Secret Access Key are required');
+        return;
+    }
+
+    fetch('/ui/users/me/s3-credentials', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': '{{.CSRFToken}}'
+        },
+        body: JSON.stringify({
+            access_key_id: accessKeyID,
+            secret_access_key: secretAccessKey
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            Toast.error('Error: ' + data.error);
+        } else {
+            Toast.success('S3 credentials updated successfully');
+            Modal.hide('setOwnS3CredentialsModal');
+            setTimeout(() => window.location.reload(), 1000);
+        }
+    })
+    .catch(error => {
+        Toast.error('Error updating S3 credentials');
+        console.error('Error:', error);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    {{if .Stats.Buckets}}
+    const buckets = {{.BucketsJSON}};
+    Stats.renderStorageChart('storageChart', buckets);
+    Stats.renderObjectCountChart('objectsChart', buckets);
+    {{end}}
+    {{if .ContentTypeStats}}
+    const contentTypes = {{.ContentTypesJSON}};
+    Stats.renderContentTypeChart('contentTypeChart', contentTypes);
+    {{end}}
+});
+</script>
+{{end}}

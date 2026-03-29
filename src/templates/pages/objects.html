@@ -1,0 +1,505 @@
+{{define "content"}}
+<div class="mb-6">
+    <!-- Breadcrumb -->
+    <div class="flex items-center text-sm text-gray-500 mb-4">
+        <a href="/ui/buckets" class="hover:text-primary">Buckets</a>
+        <span class="mx-2">/</span>
+        <a href="/ui/buckets/{{.Bucket}}/objects" class="hover:text-primary">{{.Bucket}}</a>
+        {{if .Prefix}}
+        {{range $i, $part := .PathParts}}
+        <span class="mx-2">/</span>
+        <a href="/ui/buckets/{{$.Bucket}}/objects?prefix={{$part.FullPath}}" class="hover:text-primary">{{$part.Name}}</a>
+        {{end}}
+        {{end}}
+    </div>
+
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">{{.Bucket}}</h1>
+            <p class="text-gray-500 mt-1">Browse and manage objects</p>
+        </div>
+        <div class="flex items-center gap-3">
+            {{if not .CanWrite}}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                Read-only
+            </span>
+            {{else}}
+            <button onclick="Modal.show('uploadModal')"
+                class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                Upload
+            </button>
+            {{end}}
+        </div>
+    </div>
+</div>
+
+<div id="currentPath" data-path="{{.Prefix}}"></div>
+
+<!-- Search and Filter Bar -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+    <form id="filterForm" method="GET" class="flex flex-wrap items-center gap-4">
+        {{if .Prefix}}
+        <input type="hidden" name="prefix" value="{{.Prefix}}">
+        {{end}}
+        <input type="hidden" name="sort_by" id="sortByInput" value="{{.SortBy}}">
+        <input type="hidden" name="sort_order" id="sortOrderInput" value="{{.SortOrder}}">
+
+        <!-- Search Box -->
+        <div class="flex-1 min-w-[200px]">
+            <div class="relative">
+                <input type="text" name="search" id="searchInput" value="{{.Search}}"
+                    placeholder="Search objects..."
+                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary">
+                <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Per Page Selector -->
+        <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-600">Show:</label>
+            <select name="per_page" id="perPageSelect" onchange="document.getElementById('filterForm').submit()"
+                class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary">
+                {{range .PerPageOptions}}
+                <option value="{{.}}" {{if eq . $.PerPage}}selected{{end}}>{{.}}</option>
+                {{end}}
+            </select>
+            <span class="text-sm text-gray-600">per page</span>
+        </div>
+
+        <!-- Search Button -->
+        <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+            </svg>
+            Filter
+        </button>
+
+        {{if .Search}}
+        <a href="/ui/buckets/{{.Bucket}}/objects{{if .Prefix}}?prefix={{.Prefix}}{{end}}"
+            class="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            Clear
+        </a>
+        {{end}}
+    </form>
+
+    <!-- Stats -->
+    <div class="mt-3 text-sm text-gray-500">
+        Showing {{len .Objects}} of {{.TotalObjects}} objects{{if gt .TotalFolders 0}}, {{.TotalFolders}} folders{{end}}
+        {{if .Search}}matching "{{.Search}}"{{end}}
+    </div>
+</div>
+
+<!-- Bulk Actions Bar -->
+{{if .CanWrite}}
+<div id="bulkActionsBar" class="hidden bg-primary text-white rounded-lg shadow-sm border border-primary mb-4 p-4">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <span id="selectedCount" class="font-medium">0 objects selected</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="BulkActions.deleteSelected()"
+                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                Delete Selected
+            </button>
+            <button onclick="BulkActions.clearSelection()"
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                Clear Selection
+            </button>
+        </div>
+    </div>
+</div>
+{{end}}
+
+<!-- Objects Table -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead>
+                <tr>
+                    {{if .CanWrite}}
+                    <th class="px-4 py-3 bg-gray-50 border-b w-12">
+                        <input type="checkbox" id="selectAll" onchange="BulkActions.toggleSelectAll(this)"
+                            class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer">
+                    </th>
+                    {{end}}
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b cursor-pointer hover:bg-gray-100"
+                        onclick="sortTable('name')">
+                        <div class="flex items-center gap-1">
+                            Name
+                            {{if eq .SortBy "name"}}
+                            <svg class="w-4 h-4 {{if eq .SortOrder "desc"}}transform rotate-180{{end}}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                            </svg>
+                            {{end}}
+                        </div>
+                    </th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b cursor-pointer hover:bg-gray-100"
+                        onclick="sortTable('size')">
+                        <div class="flex items-center gap-1">
+                            Size
+                            {{if eq .SortBy "size"}}
+                            <svg class="w-4 h-4 {{if eq .SortOrder "desc"}}transform rotate-180{{end}}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                            </svg>
+                            {{end}}
+                        </div>
+                    </th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b cursor-pointer hover:bg-gray-100"
+                        onclick="sortTable('type')">
+                        <div class="flex items-center gap-1">
+                            Type
+                            {{if eq .SortBy "type"}}
+                            <svg class="w-4 h-4 {{if eq .SortOrder "desc"}}transform rotate-180{{end}}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                            </svg>
+                            {{end}}
+                        </div>
+                    </th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b cursor-pointer hover:bg-gray-100"
+                        onclick="sortTable('date')">
+                        <div class="flex items-center gap-1">
+                            Last Modified
+                            {{if eq .SortBy "date"}}
+                            <svg class="w-4 h-4 {{if eq .SortOrder "desc"}}transform rotate-180{{end}}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                            </svg>
+                            {{end}}
+                        </div>
+                    </th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">
+                        <div class="flex items-center gap-1">
+                            Signature (SHA256)
+                        </div>
+                    </th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b w-48">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{if .Prefix}}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 border-b border-gray-100" colspan="{{if $.CanWrite}}7{{else}}6{{end}}">
+                        <a href="/ui/buckets/{{.Bucket}}/objects{{if .ParentPrefix}}?prefix={{.ParentPrefix}}{{end}}"
+                            class="flex items-center text-gray-600 hover:text-primary">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"></path>
+                            </svg>
+                            ..
+                        </a>
+                    </td>
+                </tr>
+                {{end}}
+                {{range .CommonPrefixes}}
+                <tr class="hover:bg-gray-50">
+                    {{if $.CanWrite}}
+                    <td class="px-4 py-4 border-b border-gray-100"></td>
+                    {{end}}
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        <a href="/ui/buckets/{{$.Bucket}}/objects?prefix={{.}}"
+                            class="flex items-center text-primary hover:text-primary-dark">
+                            <svg class="w-5 h-5 mr-2 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="truncate">{{.}}</span>
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-gray-500">-</td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-gray-500">Folder</td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-gray-500">-</td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-gray-500">-</td>
+                    <td class="px-6 py-4 border-b border-gray-100">-</td>
+                </tr>
+                {{end}}
+                {{range .Objects}}
+                <tr class="hover:bg-gray-50 object-row">
+                    {{if $.CanWrite}}
+                    <td class="px-4 py-4 border-b border-gray-100">
+                        <input type="checkbox" class="object-checkbox w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer"
+                            data-bucket="{{$.Bucket}}" data-key="{{.Key}}" onchange="BulkActions.updateBulkActionsUI()">
+                    </td>
+                    {{end}}
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        <div class="flex items-center min-w-0">
+                            <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span class="text-gray-800 truncate">{{.Name}}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-gray-600">{{formatBytes .Size}}</td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-gray-600">{{.ContentType}}</td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-gray-600">{{formatDate .LastModified}}</td>
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        {{if .ETag}}
+                        <button onclick="HashDisplay.copyHash('{{.ETag}}')"
+                            title="{{.ETag}} (Click to copy)"
+                            class="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono text-gray-600 hover:text-primary hover:bg-gray-50 rounded transition-colors cursor-pointer group">
+                            <span>{{truncateHash .ETag}}</span>
+                            <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                        </button>
+                        {{else}}
+                        <span class="text-gray-400 text-xs">-</span>
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        <div class="flex items-center gap-2">
+                            <a href="/{{$.Bucket}}/{{.Key}}" target="_blank"
+                                class="text-primary hover:text-primary-dark text-sm">Download</a>
+                            {{if $.CanWrite}}
+                            <span class="text-gray-300">|</span>
+                            <button onclick="showShareModal('{{$.Bucket}}', '{{.Key}}')"
+                                class="text-green-600 hover:text-green-800 text-sm">Share</button>
+                            <span class="text-gray-300">|</span>
+                            <button onclick="S3Object.delete('{{$.Bucket}}', '{{.Key}}')"
+                                class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                            {{end}}
+                        </div>
+                    </td>
+                </tr>
+                {{else}}
+                {{if not .CommonPrefixes}}
+                <tr>
+                    <td colspan="{{if .CanWrite}}7{{else}}6{{end}}" class="px-6 py-12 text-center text-gray-500">
+                        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                        </div>
+                        {{if .Search}}
+                        <p class="text-lg font-medium text-gray-700 mb-2">No objects found</p>
+                        <p class="text-gray-500 mb-4">No objects match your search "{{.Search}}"</p>
+                        {{else}}
+                        <p class="text-lg font-medium text-gray-700 mb-2">No objects here</p>
+                        {{if $.CanWrite}}
+                        <p class="text-gray-500 mb-4">Upload files to get started</p>
+                        {{else}}
+                        <p class="text-gray-500 mb-4">This bucket is empty</p>
+                        {{end}}
+                        {{end}}
+                        {{if $.CanWrite}}
+                        <button onclick="Modal.show('uploadModal')"
+                            class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover">
+                            Upload Files
+                        </button>
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {{if gt .TotalPages 1}}
+    <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+        <div class="text-sm text-gray-500">
+            Page {{.Page}} of {{.TotalPages}}
+        </div>
+        <nav class="flex items-center gap-1">
+            <!-- Previous Button -->
+            {{if gt .Page 1}}
+            <a href="{{buildPaginationURL $.Bucket $.Prefix (subtract .Page 1) .PerPage .SortBy .SortOrder .Search}}"
+                class="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </a>
+            {{end}}
+
+            <!-- Page Numbers -->
+            {{range .Pagination}}
+            {{if .IsEllipsis}}
+            <span class="px-3 py-2 text-gray-400">...</span>
+            {{else}}
+            <a href="{{buildPaginationURL $.Bucket $.Prefix .Page $.PerPage $.SortBy $.SortOrder $.Search}}"
+                class="px-3 py-2 rounded-lg {{if .IsCurrent}}bg-primary text-white{{else}}text-gray-600 hover:bg-gray-100{{end}}">
+                {{.Label}}
+            </a>
+            {{end}}
+            {{end}}
+
+            <!-- Next Button -->
+            {{if lt .Page .TotalPages}}
+            <a href="{{buildPaginationURL $.Bucket $.Prefix (add .Page 1) .PerPage .SortBy .SortOrder .Search}}"
+                class="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </a>
+            {{end}}
+        </nav>
+    </div>
+    {{end}}
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Upload Files</h3>
+        </div>
+        <div class="px-6 py-6">
+            <div id="dropZone" class="drop-zone rounded-lg p-8 text-center cursor-pointer">
+                <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <p class="text-gray-600 mb-2">Drag and drop files here</p>
+                <p class="text-gray-400 text-sm">or click to select files</p>
+            </div>
+            <input type="file" id="fileInput" multiple class="hidden">
+
+            <div id="uploadProgress" class="hidden mt-4">
+                <div class="flex items-center justify-between mb-2 gap-2 min-w-0">
+                    <span id="progressText" class="text-sm text-gray-600 truncate">Uploading...</span>
+                    <span id="progressPercent" class="text-sm text-gray-500">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progressBar" class="bg-primary h-2 rounded-full progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div id="uploadError" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div>
+                        <h4 class="text-sm font-medium text-red-800">Upload Failed</h4>
+                        <p id="uploadErrorMessage" class="text-sm text-red-700 mt-1"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+            <button onclick="Modal.hide('uploadModal')"
+                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div id="shareModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Create Share Link</h3>
+        </div>
+        <div class="px-6 py-4">
+            <p class="text-gray-600 mb-4">
+                Creating share link for: <span id="shareObjectName" class="font-medium text-gray-800 break-words whitespace-normal max-w-full" title=""></span>
+            </p>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Expiration</label>
+            <select id="shareExpiry" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary">
+                <option value="3600">1 hour</option>
+                <option value="86400" selected>1 day</option>
+                <option value="604800">1 week</option>
+                <option value="2592000">30 days</option>
+                <option value="0">Never expires</option>
+            </select>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <button onclick="Modal.hide('shareModal')"
+                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                Cancel
+            </button>
+            <button id="createShareBtn" onclick="createShareLink()"
+                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                Create Link
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Share Result Modal -->
+<div id="shareResultModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Share Link Created</h3>
+        </div>
+        <div class="px-6 py-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Share URL</label>
+            <div class="flex gap-2">
+                <input type="text" id="shareUrl" readonly
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                <button onclick="ShareLink.copyToClipboard()"
+                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover">
+                    Copy
+                </button>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+            <button onclick="Modal.hide('shareResultModal')"
+                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+let currentShareBucket = '';
+let currentShareKey = '';
+
+document.addEventListener('DOMContentLoaded', function() {
+    FileUpload.init('dropZone', 'fileInput', '{{.Bucket}}');
+
+    // Submit search on Enter key
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('filterForm').submit();
+        }
+    });
+});
+
+function showShareModal(bucket, key) {
+    currentShareBucket = bucket;
+    currentShareKey = key;
+    const el = document.getElementById('shareObjectName');
+    el.textContent = key;
+    el.title = key; // show full name on hover for long names
+    Modal.show('shareModal');
+}
+
+function createShareLink() {
+    ShareLink.create(currentShareBucket, currentShareKey);
+    Modal.hide('shareModal');
+}
+
+function sortTable(column) {
+    const currentSortBy = '{{.SortBy}}';
+    const currentSortOrder = '{{.SortOrder}}';
+    const sortByInput = document.getElementById('sortByInput');
+    const sortOrderInput = document.getElementById('sortOrderInput');
+
+    sortByInput.value = column;
+
+    // Toggle order if same column, otherwise default to ascending
+    if (column === currentSortBy) {
+        sortOrderInput.value = currentSortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortOrderInput.value = 'asc';
+    }
+
+    document.getElementById('filterForm').submit();
+}
+</script>
+{{end}}

@@ -1,0 +1,268 @@
+version: "3"
+
+vars:
+  BINARY_NAME: s3-storage
+  # ONNXRUNTIME version and configuration
+  ONNX_VERSION: "1.23.2"
+  ONNX_NAME: "onnxruntime"
+  # Local directories for dependencies (relative to project root)
+  DEPS_DIR: "../.deps"
+  ONNX_DIR: "{{.DEPS_DIR}}/onnxruntime"
+  MAGIKA_DIR: "{{.DEPS_DIR}}/magika"
+
+env:
+  # Use local deps directory or fallback to user-provided paths
+  DYLD_LIBRARY_PATH:
+    sh: echo "${ONNXRUNTIME_LIB:-{{.ONNX_DIR}}/lib}"
+  LD_LIBRARY_PATH:
+    sh: echo "${ONNXRUNTIME_LIB:-{{.ONNX_DIR}}/lib}"
+  CGO_ENABLED: "1"
+  CGO_CFLAGS:
+    sh: echo "-I${ONNXRUNTIME_INCLUDE:-{{.ONNX_DIR}}/include}"
+  MAGIKA_ASSETS_DIR:
+    sh: echo "${MAGIKA_ASSETS:-{{.MAGIKA_DIR}}/assets}"
+  WEB_UI_ENABLED: "true"
+
+tasks:
+  setup-onnxruntime:
+    desc: Download and setup ONNXRUNTIME
+    cmds:
+      - |
+        echo "Setting up ONNXRUNTIME..."
+
+        # Skip if user provided their own path
+        if [ -n "$ONNXRUNTIME_LIB" ]; then
+          echo "Using user-provided ONNXRUNTIME at: $ONNXRUNTIME_LIB"
+          exit 0
+        fi
+
+        # Skip if already downloaded
+        if [ -d "{{.ONNX_DIR}}/lib" ]; then
+          echo "ONNXRUNTIME already installed at {{.ONNX_DIR}}"
+          exit 0
+        fi
+
+        # Detect OS and architecture
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+
+        # Map to ONNXRUNTIME naming convention
+        case "$OS" in
+          darwin)
+            if [ "$ARCH" = "arm64" ]; then
+              ONNX_ARCH="osx-arm64"
+            else
+              ONNX_ARCH="osx-x86_64"
+            fi
+            ;;
+          linux)
+            if [ "$ARCH" = "aarch64" ]; then
+              ONNX_ARCH="linux-aarch64"
+            else
+              ONNX_ARCH="linux-x64"
+            fi
+            ;;
+          *)
+            echo "Unsupported OS: $OS"
+            exit 1
+            ;;
+        esac
+
+        ONNX_FULLNAME="{{.ONNX_NAME}}-${ONNX_ARCH}-{{.ONNX_VERSION}}"
+        ONNX_TARBALL="${ONNX_FULLNAME}.tgz"
+        DOWNLOAD_URL="https://github.com/microsoft/{{.ONNX_NAME}}/releases/download/v{{.ONNX_VERSION}}/${ONNX_TARBALL}"
+
+        echo "Downloading ONNXRUNTIME ${ONNX_ARCH} version {{.ONNX_VERSION}}..."
+        echo "URL: $DOWNLOAD_URL"
+
+        # Create deps directory
+        mkdir -p {{.DEPS_DIR}}
+
+        # Download and extract
+        cd {{.DEPS_DIR}}
+        curl -sL -O "$DOWNLOAD_URL"
+
+        if [ ! -f "$ONNX_TARBALL" ]; then
+          echo "Failed to download ONNXRUNTIME"
+          exit 1
+        fi
+
+        echo "Extracting..."
+        tar -xzf "$ONNX_TARBALL"
+
+        # Create symlink for consistent path
+        ln -sf "$ONNX_FULLNAME" onnxruntime
+
+        # Cleanup tarball
+        rm "$ONNX_TARBALL"
+
+        echo "✓ ONNXRUNTIME installed to {{.ONNX_DIR}}"
+
+  setup-magika:
+    desc: Clone Magika repository
+    cmds:
+      - |
+        echo "Setting up Magika..."
+
+        # Skip if user provided their own path
+        if [ -n "$MAGIKA_ASSETS" ]; then
+          echo "Using user-provided Magika assets at: $MAGIKA_ASSETS"
+          exit 0
+        fi
+
+        # Skip if already cloned
+        if [ -d "{{.MAGIKA_DIR}}/assets" ]; then
+          echo "Magika already cloned at {{.MAGIKA_DIR}}"
+          exit 0
+        fi
+
+        echo "Cloning Magika repository..."
+        mkdir -p {{.DEPS_DIR}}
+        git clone --depth=1 https://github.com/google/magika.git {{.MAGIKA_DIR}}
+
+        echo "✓ Magika cloned to {{.MAGIKA_DIR}}"
+
+  setup:
+    desc: Setup all dependencies (ONNXRUNTIME + Magika)
+    deps: [setup-onnxruntime, setup-magika]
+    cmds:
+      - echo "✓ All dependencies setup complete"
+
+  deps:
+    desc: Download Go dependencies
+    cmds:
+      - echo "Downloading Go dependencies..."
+      - go mod tidy
+
+  default:
+    desc: Default task (same as `make run`)
+    cmds:
+      - task: run
+
+  vet:
+    desc: Run static analysis
+    cmds:
+      - echo "Running static analysis..."
+      - go vet ./...
+
+  test:
+    desc: Run unit tests
+    dir: test
+    cmds:
+      - echo "Running unit tests..."
+      - go test -v ./... -coverprofile=../coverage.out
+
+  coverage:
+    desc: Generate code coverage report
+    deps: [test]
+    cmds:
+      - echo "Generating coverage report..."
+      - go tool cover -html=coverage.out -o coverage.html
+
+  swagger:
+    desc: Generate Swagger documentation
+    cmds:
+      - echo "Generating Swagger documentation..."
+      - swag init --parseDependency
+
+  css:
+    desc: Build Tailwind CSS
+    cmds:
+      - echo "Building Tailwind CSS..."
+      - |
+        # Detect OS and architecture
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+
+        # Map to Tailwind CSS binary naming convention
+        case "$OS" in
+          darwin)
+            OS_NAME="macos"
+            ;;
+          linux)
+            OS_NAME="linux"
+            ;;
+          mingw*|msys*|cygwin*)
+            OS_NAME="windows"
+            ;;
+          *)
+            echo "Unsupported OS: $OS"
+            exit 1
+            ;;
+        esac
+
+        case "$ARCH" in
+          x86_64|amd64)
+            ARCH_NAME="x64"
+            ;;
+          arm64|aarch64)
+            ARCH_NAME="arm64"
+            ;;
+          *)
+            echo "Unsupported architecture: $ARCH"
+            exit 1
+            ;;
+        esac
+
+        # Construct binary name
+        if [ "$OS_NAME" = "windows" ]; then
+          BINARY_NAME="tailwindcss-${OS_NAME}-${ARCH_NAME}.exe"
+        else
+          BINARY_NAME="tailwindcss-${OS_NAME}-${ARCH_NAME}"
+        fi
+
+        # Download if not exists (in parent directory)
+        if [ ! -f "../$BINARY_NAME" ]; then
+          echo "Downloading $BINARY_NAME..."
+          curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/$BINARY_NAME" -o "../$BINARY_NAME"
+          chmod +x "../$BINARY_NAME"
+        fi
+
+        # Build CSS (execute from parent directory)
+        cd .. && ./"$BINARY_NAME" -i ./src/assets/css/input.css -o ./src/assets/css/styles.css --minify
+
+  build:
+    desc: Build the Go binary
+    deps: [setup, css, swagger, vet, deps]
+    cmds:
+      - echo "Building binary..."
+      - |
+        # Determine linker flags based on environment
+        ONNX_LIB_PATH="${ONNXRUNTIME_LIB:-{{.ONNX_DIR}}/lib}"
+        echo "Using ONNXRUNTIME lib: $ONNX_LIB_PATH"
+
+        go build -o {{.BINARY_NAME}} \
+          -tags onnxruntime \
+          -ldflags="-linkmode=external -extldflags=-L${ONNX_LIB_PATH}" \
+          main.go
+
+  run:
+    desc: Run the Go binary
+    deps: [build]
+    cmds:
+      - echo "Running application..."
+      - ./{{.BINARY_NAME}} -s -d -p 8080
+
+  docker-build:
+    desc: Build docker container
+    cmds:
+      - echo "Building docker container..."
+      - cd $GOPATH/src && docker build -t s3-storage -f go-s3-storage/Dockerfile .
+
+  clean:
+    desc: Clean up build and generated files
+    cmds:
+      - echo "Cleaning up..."
+      - rm -f {{.BINARY_NAME}} coverage.out coverage.html
+      - rm -rf docs
+
+  clean-deps:
+    desc: Clean up downloaded dependencies (ONNXRUNTIME + Magika)
+    cmds:
+      - echo "Cleaning up dependencies..."
+      - rm -rf {{.DEPS_DIR}}
+      - echo "✓ Dependencies cleaned"
+
+  all:
+    desc: Default target (run app)
+    deps: [run]

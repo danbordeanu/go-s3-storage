@@ -1,0 +1,115 @@
+# vim: tabstop=2 shiftwidth=2 expandtab
+parameters:
+  - name: deploymentEnvironment
+    displayName: Deployment Environment
+    type: string
+    default: 'Dev'
+    values:
+      - 'Dev'
+
+trigger:
+  - master
+  - develop
+  - pr
+  - refs/tags/*
+
+variables:
+  - name: deployEnvironment
+    value: ${{ parameters.deploymentEnvironment }}
+  - name: projectDirectory
+    value: 'go-s3-storage'
+  - name: imageRepository
+    value: 's3-storage'
+  - name: dockerfilePath
+    value: '$(Build.SourcesDirectory)/$(projectDirectory)/Dockerfile'
+  - name: tag
+    ${{ if startsWith(variables['build.sourceBranch'], 'refs/tags/') }}:
+      value: '$(Build.SourceBranchName)'
+    ${{ else }}:
+      value: '$(build.sourceBranchName)-$(build.buildNumber)'
+
+pool:
+  name: Default
+  demands: agent.os -equals Linux
+
+resources:
+  repositories:
+    - repository: self
+
+jobs:
+  - job: Build
+    displayName: Build Docker Image
+    steps:
+      - checkout: self
+
+      - task: Bash@3
+        displayName: Build Local Docker Image
+        inputs:
+          targetType: inline
+          script: |
+            set -eux
+            docker build -t $(imageRepository):$(tag) -f $(dockerfilePath) $(Build.SourcesDirectory)
+            # Retag as "local:latest" for Nomad
+            docker tag $(imageRepository):$(tag) $(imageRepository):local
+  - job: Deploy_Nomad
+    displayName: Deploy with Nomad
+    dependsOn: Build
+    condition: succeeded()
+    pool:
+      name: Default
+      demands: agent.os -equals Linux
+    variables:
+      - group: "Helm Values - Dev - Common"
+      - group: "Helm Values - Dev - s3-storage"
+    steps:
+      - checkout: self
+        path: go-s3-storage
+
+      - task: Bash@3
+        displayName: Debug Environment Variables
+        inputs:
+          targetType: inline
+          script: |
+            set -eux
+            echo "=== Printing all environment variables ==="
+            printenv | sort
+            echo "========================================="
+            echo "Jaeger endpoint: $(telemetry_jaegerEndpoint)"
+            echo "Request base URL: $(request_base_url)"
+            echo "Ingress prefix: $(ingress_prefix)"
+            echo "S3 Auth Enabled: $(s3_auth_enabled)"
+            echo "S3 Access Key ID: $(s3_access_key_id)"
+            echo "S3 Region: $(s3_region)"
+            echo "Web UI Enabled: $(web_ui_enabled)"
+            echo "Local Auth Enabled: $(local_auth_enabled)"
+            echo "Local Auth Username: $(local_auth_username)"
+            echo "Storage Quota Bytes: $(storage_quota_bytes)"
+
+      - task: Bash@3
+        displayName: Run Nomad Job
+        env:
+          NOMAD_TOKEN: $(nomad_token)
+          NOMAD_ADDR: $(nomad_addr)
+        inputs:
+          targetType: inline
+          script: |
+            set -eux
+            # Use the repo variable path
+            echo "Build SourceDirectory: $(Build.SourcesDirectory)"
+            NOMAD_JOB_PATH="$(Build.SourcesDirectory)/s3-storage.nomad"
+            echo "Nomad Job Path: $NOMAD_JOB_PATH"
+            nomad job validate "$NOMAD_JOB_PATH"
+            nomad job run \
+            -var="telemetry_jaegerEndpoint=$(telemetry_jaegerEndpoint)" \
+            -var="ingress_prefix=$(ingress_prefix)" \
+            -var="request_base_url=$(request_base_url)" \
+            -var="s3_auth_enabled=$(s3_auth_enabled)" \
+            -var="s3_access_key_id=$(s3_access_key_id)" \
+            -var="s3_secret_access_key=$(s3_secret_access_key)" \
+            -var="s3_region=$(s3_region)" \
+            -var="web_ui_enabled=$(web_ui_enabled)" \
+            -var="local_auth_enabled=$(local_auth_enabled)" \
+            -var="local_auth_username=$(local_auth_username)" \
+            -var="local_auth_password=$(local_auth_password)" \
+            -var="storage_quota_bytes=$(storage_quota_bytes)" \
+            "$NOMAD_JOB_PATH"

@@ -1,0 +1,200 @@
+{{define "content"}}
+<div class="mb-8">
+    <!-- Breadcrumb -->
+    <div class="flex items-center text-sm text-gray-500 mb-4">
+        <a href="/ui/buckets" class="hover:text-primary">Buckets</a>
+        <span class="mx-2">/</span>
+        <a href="/ui/buckets/{{.Bucket}}/objects" class="hover:text-primary">{{.Bucket}}</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-700">Permissions</span>
+    </div>
+
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Bucket Permissions</h1>
+            <p class="text-gray-500 mt-1">Manage user access to <span class="font-medium">{{.Bucket}}</span></p>
+        </div>
+        <a href="/ui/buckets/{{.Bucket}}/objects"
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"></path>
+            </svg>
+            Back to Objects
+        </a>
+    </div>
+</div>
+
+<!-- Permissions Table -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-800">User Permissions</h2>
+        <p class="text-sm text-gray-500 mt-1">Control which users can read or write to this bucket. Admins always have full access.</p>
+    </div>
+
+    {{if .Permissions}}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead>
+                <tr>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">User</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b text-center w-32">Owner</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b text-center w-32">Read</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b text-center w-32">Write</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Permissions}}
+                <tr class="hover:bg-gray-50" data-user-id="{{.UserID}}">
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                                <span class="text-primary font-medium text-sm">{{firstChar .Username}}</span>
+                            </div>
+                            <div>
+                                <div class="font-medium text-gray-800">{{.Username}}</div>
+                                {{if .DisplayName}}
+                                <div class="text-sm text-gray-500">{{.DisplayName}}</div>
+                                {{end}}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-center">
+                        {{if eq $.BucketOwner .UserID}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Owner
+                        </span>
+                        {{else}}
+                        <span class="text-gray-400">-</span>
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-center">
+                        {{if eq $.BucketOwner .UserID}}
+                        <input type="checkbox" checked disabled
+                            class="w-5 h-5 text-primary rounded border-gray-300 cursor-not-allowed opacity-50">
+                        {{else}}
+                        <input type="checkbox" {{if .CanRead}}checked{{end}}
+                            onchange="updatePermission('{{.UserID}}', 'read', this.checked)"
+                            class="w-5 h-5 text-primary rounded border-gray-300 cursor-pointer ring-primary">
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-center">
+                        {{if eq $.BucketOwner .UserID}}
+                        <input type="checkbox" checked disabled
+                            class="w-5 h-5 text-primary rounded border-gray-300 cursor-not-allowed opacity-50">
+                        {{else}}
+                        <input type="checkbox" {{if .CanWrite}}checked{{end}}
+                            onchange="updatePermission('{{.UserID}}', 'write', this.checked)"
+                            class="w-5 h-5 text-primary rounded border-gray-300 cursor-pointer ring-primary">
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="px-6 py-12 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+            </svg>
+        </div>
+        <h3 class="text-lg font-medium text-gray-800 mb-2">No non-admin users</h3>
+        <p class="text-gray-500">Create non-admin users to manage bucket permissions</p>
+        <a href="/ui/users" class="inline-block mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover">
+            Manage Users
+        </a>
+    </div>
+    {{end}}
+</div>
+
+<!-- Permission Legend -->
+<div class="mt-6 bg-primary-light rounded-lg p-4">
+    <h3 class="text-sm font-medium text-primary-dark mb-2">Permission Guide</h3>
+    <ul class="text-sm text-gray-700 space-y-1">
+        <li><span class="font-medium">Owner:</span> The user who created the bucket. Owners always have full read and write access.</li>
+        <li><span class="font-medium">Read:</span> Users can view and download objects from this bucket.</li>
+        <li><span class="font-medium">Write:</span> Users can upload, modify, and delete objects in this bucket.</li>
+        <li><span class="font-medium">Admins:</span> Admin users always have full access to all buckets regardless of these settings.</li>
+    </ul>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+const bucket = '{{.Bucket}}';
+
+// Track permission state per user
+const permissionState = {};
+{{range .Permissions}}
+permissionState['{{.UserID}}'] = { canRead: {{.CanRead}}, canWrite: {{.CanWrite}} };
+{{end}}
+
+async function updatePermission(userId, type, checked) {
+    // Update local state
+    if (type === 'read') {
+        permissionState[userId].canRead = checked;
+        // If removing read, also remove write
+        if (!checked) {
+            permissionState[userId].canWrite = false;
+            const writeCheckbox = document.querySelector(`tr[data-user-id="${userId}"] input[onchange*="write"]`);
+            if (writeCheckbox) writeCheckbox.checked = false;
+        }
+    } else {
+        permissionState[userId].canWrite = checked;
+        // If adding write, also add read
+        if (checked) {
+            permissionState[userId].canRead = true;
+            const readCheckbox = document.querySelector(`tr[data-user-id="${userId}"] input[onchange*="read"]`);
+            if (readCheckbox) readCheckbox.checked = true;
+        }
+    }
+
+    try {
+        const response = await fetch(`/ui/buckets/${bucket}/permissions`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '{{.CSRFToken}}'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                can_read: permissionState[userId].canRead,
+                can_write: permissionState[userId].canWrite
+            })
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to update permission');
+        }
+
+        // Show success feedback
+        showToast('Permission updated successfully', 'success');
+    } catch (error) {
+        // Revert checkbox state
+        const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+        if (type === 'read') {
+            row.querySelector('input[onchange*="read"]').checked = !checked;
+            permissionState[userId].canRead = !checked;
+        } else {
+            row.querySelector('input[onchange*="write"]').checked = !checked;
+            permissionState[userId].canWrite = !checked;
+        }
+        showToast(error.message, 'error');
+    }
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white ${type === 'success' ? 'bg-green-600' : 'bg-red-600'} transition-opacity duration-300`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
+{{end}}

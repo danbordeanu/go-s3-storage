@@ -1,0 +1,351 @@
+{{define "content"}}
+<div class="mb-8 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Users</h1>
+        <p class="text-gray-500 mt-1">Manage user accounts</p>
+    </div>
+    <button onclick="Modal.show('createUserModal')"
+        class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+        Add User
+    </button>
+</div>
+
+<!-- Users Table -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead>
+                <tr>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">User</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">Username</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">Provider</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">Roles</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b">S3 Credentials</th>
+                    <th class="px-6 py-3 bg-gray-50 text-gray-700 font-semibold border-b w-32">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Users}}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-medium">
+                                {{slice .DisplayName 0 1}}
+                            </div>
+                            <div class="ml-3">
+                                <p class="font-medium text-gray-800">{{.DisplayName}}</p>
+                                {{if .IsBootstrap}}
+                                <span class="text-xs text-gray-500">Bootstrap Admin</span>
+                                {{end}}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100 text-gray-600">{{.Username}}</td>
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        {{if eq .Provider "config"}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                Config
+                            </span>
+                        {{else if eq .Provider "local"}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-dark">
+                                Local
+                            </span>
+                        {{else if eq .Provider "azuread"}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Azure AD
+                            </span>
+                        {{else}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {{.Provider}}
+                            </span>
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        {{range .Roles}}
+                        {{if eq . "admin"}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 mr-1">
+                                Admin
+                            </span>
+                        {{else}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 mr-1">
+                                {{.}}
+                            </span>
+                        {{end}}
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        {{if .S3AccessKeyID}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Configured
+                            </span>
+                            <div class="text-xs text-gray-500 mt-1">{{.S3AccessKeyID}}</div>
+                        {{else}}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                Not Set
+                            </span>
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4 border-b border-gray-100">
+                        {{if not .IsBootstrap}}
+                        <div class="flex flex-col gap-2">
+                            <button onclick="User.showS3CredentialsModal('{{.ID}}', '{{.Username}}', '{{.S3AccessKeyID}}', '{{.S3SecretAccessKey}}')"
+                                class="text-primary hover:text-primary-dark text-sm text-left">S3 Credentials</button>
+                            {{if eq .Provider "local"}}
+                            <button onclick="User.showResetPasswordModal('{{.ID}}', '{{.Username}}')"
+                                class="text-primary hover:text-primary-dark text-sm text-left">Reset Password</button>
+                            {{end}}
+                            <button onclick="User.delete('{{.ID}}')"
+                                class="text-red-600 hover:text-red-800 text-sm text-left">Delete</button>
+                        </div>
+                        {{else}}
+                        <span class="text-gray-400 text-sm">Protected</span>
+                        {{end}}
+                    </td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        <p>No users found</p>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div id="createUserModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Add User</h3>
+        </div>
+        <form id="createUserForm" onsubmit="event.preventDefault(); createUser();">
+            <div class="px-6 py-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" id="newUsername" name="username" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="username">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                    <input type="text" id="newDisplayName" name="display_name" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="John Doe">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="newPassword" name="password" required minlength="8"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="Minimum 8 characters">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirm_password" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="Confirm password">
+                </div>
+                <div>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="isAdmin" name="is_admin"
+                            class="w-4 h-4 text-primary border-gray-300 rounded ring-primary">
+                        <span class="ml-2 text-sm text-gray-700">Administrator</span>
+                    </label>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button type="button" onclick="Modal.hide('createUserModal')"
+                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover">
+                    Create User
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div id="resetPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Reset Password</h3>
+            <p class="text-sm text-gray-500 mt-1">Reset password for <span id="resetPasswordUsername" class="font-medium"></span></p>
+        </div>
+        <form id="resetPasswordForm" onsubmit="event.preventDefault(); User.adminResetPassword();">
+            <input type="hidden" id="resetPasswordUserId" name="user_id">
+            <div class="px-6 py-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                    <input type="password" id="resetNewPassword" name="new_password" required minlength="8"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="Minimum 8 characters">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                    <input type="password" id="resetConfirmPassword" name="confirm_password" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="Confirm new password">
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button type="button" onclick="Modal.hide('resetPasswordModal')"
+                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover">
+                    Reset Password
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- S3 Credentials Modal -->
+<div id="s3CredentialsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Set S3 Credentials</h3>
+            <p class="text-sm text-gray-500 mt-1">Configure S3 credentials for <span id="s3CredUsername" class="font-medium"></span></p>
+        </div>
+        <form id="s3CredentialsForm" onsubmit="event.preventDefault(); User.saveS3Credentials();">
+            <input type="hidden" id="s3CredUserId" name="user_id">
+            <div class="px-6 py-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Access Key ID</label>
+                    <input type="text" id="s3AccessKeyID" name="access_key_id" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="AKIAIOSFODNN7EXAMPLE">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Secret Access Key</label>
+                    <input type="password" id="s3SecretAccessKey" name="secret_access_key" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ring-primary"
+                        placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">
+                    <p class="text-xs text-gray-500 mt-1">Leave blank to keep existing secret key</p>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button type="button" onclick="Modal.hide('s3CredentialsModal')"
+                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover">
+                    Save Credentials
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+function createUser() {
+    const username = document.getElementById('newUsername').value.trim();
+    const displayName = document.getElementById('newDisplayName').value.trim();
+    const password = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const isAdmin = document.getElementById('isAdmin').checked;
+
+    if (password !== confirmPassword) {
+        Toast.error('Passwords do not match');
+        return;
+    }
+
+    const roles = isAdmin ? ['admin', 'user'] : ['user'];
+
+    User.create({
+        username: username,
+        display_name: displayName,
+        password: password,
+        roles: roles
+    });
+
+    Modal.hide('createUserModal');
+}
+
+// Add S3 credentials functions to User object
+User.showS3CredentialsModal = function(userId, username, accessKeyID, secretAccessKey) {
+    document.getElementById('s3CredUserId').value = userId;
+    document.getElementById('s3CredUsername').textContent = username;
+    document.getElementById('s3AccessKeyID').value = accessKeyID || '';
+    document.getElementById('s3SecretAccessKey').value = ''; // Never pre-fill secret
+    Modal.show('s3CredentialsModal');
+};
+
+User.saveS3Credentials = function() {
+    const userId = document.getElementById('s3CredUserId').value;
+    const accessKeyID = document.getElementById('s3AccessKeyID').value.trim();
+    const secretAccessKey = document.getElementById('s3SecretAccessKey').value.trim();
+
+    if (!accessKeyID || !secretAccessKey) {
+        Toast.error('Both Access Key ID and Secret Access Key are required');
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    fetch(`/ui/users/${userId}/s3-credentials`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
+        },
+        body: JSON.stringify({
+            access_key_id: accessKeyID,
+            secret_access_key: secretAccessKey
+        })
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        // Check if response is ok before parsing JSON
+        if (!response.ok) {
+            return response.json().then(data => {
+                console.error('Error response data:', data);
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }).catch(jsonError => {
+                console.error('Error parsing JSON or thrown error:', jsonError);
+                // If JSON parsing fails, throw a generic error
+                if (jsonError.message) {
+                    throw jsonError;
+                }
+                throw new Error(`HTTP ${response.status}: Failed to update credentials`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Success response data:', data);
+
+        // Use the message from the backend response
+        const message = data && data.message ? data.message : 'S3 credentials updated successfully';
+        console.log('About to show toast with message:', message);
+
+        Toast.success(message);
+        Modal.hide('s3CredentialsModal');
+        setTimeout(() => window.location.reload(), 1000);
+    })
+    .catch(error => {
+        console.error('Caught error:', error);
+        console.error('Error message:', error.message);
+
+        // Display the actual error message
+        const errorMsg = error && error.message ? error.message : 'Error updating S3 credentials';
+        console.log('About to show error toast with message:', errorMsg);
+
+        Toast.error(errorMsg);
+    });
+};
+</script>
+{{end}}

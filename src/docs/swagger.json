@@ -1,0 +1,1063 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support"
+        }
+    },
+    "paths": {
+        "/": {
+            "get": {
+                "description": "Returns a list of all buckets owned by the authenticated sender of the request",
+                "produces": [
+                    "text/xml"
+                ],
+                "tags": [
+                    "buckets"
+                ],
+                "summary": "List all buckets",
+                "operationId": "listbuckets",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "SHA256 hash of request payload or 'UNSIGNED-PAYLOAD' (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Content-SHA256",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of all buckets with owner information",
+                        "schema": {
+                            "$ref": "#/definitions/model.ListAllMyBucketsResult"
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "503": {
+                        "description": "Service unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/share/create/{bucket}/{key}": {
+            "post": {
+                "description": "Generates a unique public link that allows downloading an object without authentication",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sharing"
+                ],
+                "summary": "Create a public share link for an object",
+                "operationId": "createsharelink",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the bucket",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object key (path)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Expiration time in seconds (0 for no expiration)",
+                        "name": "expires_in",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Share link created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateShareLinkResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket or object not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/share/{token}": {
+            "get": {
+                "description": "Downloads an object using a public share token without authentication",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "sharing"
+                ],
+                "summary": "Download an object via public share link",
+                "operationId": "getsharedobject",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share link token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Object data",
+                        "schema": {
+                            "type": "file"
+                        },
+                        "headers": {
+                            "Content-Length": {
+                                "type": "string",
+                                "description": "Size of the object in bytes"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "MIME type of the object"
+                            },
+                            "ETag": {
+                                "type": "string",
+                                "description": "MD5 hash of the object (quoted)"
+                            },
+                            "Last-Modified": {
+                                "type": "string",
+                                "description": "Last modification time (RFC1123 format)"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Share link expired",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Share link not found or object deleted",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Revokes a public share link by deleting it",
+                "tags": [
+                    "sharing"
+                ],
+                "summary": "Delete a share link",
+                "operationId": "deletesharelink",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share link token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Share link deleted successfully"
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Share link not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/{bucket}": {
+            "get": {
+                "description": "Returns a list of objects in the specified bucket (S3 ListObjectsV2 compatible)",
+                "produces": [
+                    "text/xml"
+                ],
+                "tags": [
+                    "objects"
+                ],
+                "summary": "List objects in a bucket",
+                "operationId": "listobjects",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            2
+                        ],
+                        "type": "integer",
+                        "description": "S3 list API version (must be 2 for ListObjectsV2)",
+                        "name": "list-type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Limits the response to keys that begin with the specified prefix",
+                        "name": "prefix",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Character used to group keys (usually /)",
+                        "name": "delimiter",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1000,
+                        "description": "Maximum number of keys returned",
+                        "name": "max-keys",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of objects",
+                        "schema": {
+                            "$ref": "#/definitions/model.ListBucketResult"
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Creates a new S3 bucket with the specified name",
+                "produces": [
+                    "text/xml"
+                ],
+                "tags": [
+                    "buckets"
+                ],
+                "summary": "Create a new bucket",
+                "operationId": "createbucket",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the bucket to create",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "SHA256 hash of request payload or 'UNSIGNED-PAYLOAD' (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Content-SHA256",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bucket created successfully",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "The path to the created bucket"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid bucket name",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Bucket already exists",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes the specified bucket. The bucket must be empty before it can be deleted",
+                "produces": [
+                    "text/xml"
+                ],
+                "tags": [
+                    "buckets"
+                ],
+                "summary": "Delete a bucket",
+                "operationId": "deletebucket",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the bucket to delete",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "SHA256 hash of request payload or 'UNSIGNED-PAYLOAD' (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Content-SHA256",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Bucket deleted successfully"
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Bucket not empty",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            },
+            "head": {
+                "description": "Checks if a bucket exists and you have permission to access it",
+                "tags": [
+                    "buckets"
+                ],
+                "summary": "Check if bucket exists",
+                "operationId": "headbucket",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the bucket to check",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "SHA256 hash of request payload or 'UNSIGNED-PAYLOAD' (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Content-SHA256",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bucket exists"
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/{bucket}/{key}": {
+            "get": {
+                "description": "Retrieves an object from the specified bucket",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "objects"
+                ],
+                "summary": "Get an object",
+                "operationId": "getobject",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the bucket",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object key (path)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Object data",
+                        "schema": {
+                            "type": "file"
+                        },
+                        "headers": {
+                            "Content-Length": {
+                                "type": "string",
+                                "description": "Size of the object in bytes"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "MIME type of the object"
+                            },
+                            "ETag": {
+                                "type": "string",
+                                "description": "MD5 hash of the object (quoted)"
+                            },
+                            "Last-Modified": {
+                                "type": "string",
+                                "description": "Last modification time (RFC1123 format)"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket or object not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Uploads an object to the specified bucket with the given key",
+                "consumes": [
+                    "*/*"
+                ],
+                "produces": [
+                    "text/xml"
+                ],
+                "tags": [
+                    "objects"
+                ],
+                "summary": "Upload an object",
+                "operationId": "putobject",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the bucket",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object key (path)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "SHA256 hash of the request payload",
+                        "name": "X-Amz-Content-SHA256",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Object uploaded successfully",
+                        "headers": {
+                            "ETag": {
+                                "type": "string",
+                                "description": "MD5 hash of the uploaded object"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes an object from the specified bucket",
+                "tags": [
+                    "objects"
+                ],
+                "summary": "Delete an object",
+                "operationId": "deleteobject",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the bucket",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object key (path)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Object deleted successfully"
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket or object not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            },
+            "head": {
+                "description": "Retrieves metadata for an object without downloading the object data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "objects"
+                ],
+                "summary": "Retrieve object metadata",
+                "operationId": "headobject",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the bucket",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object key (path)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)",
+                        "name": "X-Amz-Date",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Object metadata retrieved successfully (no body)",
+                        "headers": {
+                            "Content-Length": {
+                                "type": "string",
+                                "description": "Size of the object in bytes"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "MIME type of the object"
+                            },
+                            "ETag": {
+                                "type": "string",
+                                "description": "MD5 hash of the object (quoted)"
+                            },
+                            "Last-Modified": {
+                                "type": "string",
+                                "description": "Last modification time (RFC1123 format)"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied or signature mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Bucket or object not found",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/model.S3Error"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "model.Bucket": {
+            "description": "Individual bucket information",
+            "type": "object",
+            "properties": {
+                "creationDate": {
+                    "description": "Date and time when the bucket was created in RFC3339 format",
+                    "type": "string",
+                    "example": "2024-01-15T10:30:00Z"
+                },
+                "name": {
+                    "description": "Name of the bucket",
+                    "type": "string",
+                    "example": "my-bucket"
+                }
+            }
+        },
+        "model.Buckets": {
+            "description": "Container for the list of buckets",
+            "type": "object",
+            "properties": {
+                "bucket": {
+                    "description": "List of buckets",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Bucket"
+                    }
+                }
+            }
+        },
+        "model.CommonPrefix": {
+            "description": "Common prefix representing a virtual folder",
+            "type": "object",
+            "properties": {
+                "prefix": {
+                    "description": "The prefix (folder path)",
+                    "type": "string",
+                    "example": "documents/"
+                }
+            }
+        },
+        "model.CreateShareLinkResponse": {
+            "type": "object",
+            "properties": {
+                "bucket": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "integer"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "share_url": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ListAllMyBucketsResult": {
+            "description": "Success response for ListBuckets operation containing owner info and bucket list",
+            "type": "object",
+            "properties": {
+                "buckets": {
+                    "description": "Container for the list of buckets",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Buckets"
+                        }
+                    ]
+                },
+                "owner": {
+                    "description": "Owner of the buckets",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    ]
+                }
+            }
+        },
+        "model.ListBucketResult": {
+            "description": "Success response for ListObjects operation (S3 ListObjectsV2 compatible)",
+            "type": "object",
+            "properties": {
+                "commonPrefixes": {
+                    "description": "Common prefixes (virtual folders) when using delimiter",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.CommonPrefix"
+                    }
+                },
+                "contents": {
+                    "description": "List of objects",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ObjectContent"
+                    }
+                },
+                "delimiter": {
+                    "description": "Delimiter used to group common prefixes",
+                    "type": "string",
+                    "example": "/"
+                },
+                "isTruncated": {
+                    "description": "Indicates if the response is truncated",
+                    "type": "boolean",
+                    "example": false
+                },
+                "keyCount": {
+                    "description": "Number of keys returned",
+                    "type": "integer",
+                    "example": 10
+                },
+                "maxKeys": {
+                    "description": "Maximum number of keys returned",
+                    "type": "integer",
+                    "example": 1000
+                },
+                "name": {
+                    "description": "Name of the bucket",
+                    "type": "string",
+                    "example": "my-bucket"
+                },
+                "prefix": {
+                    "description": "Prefix used to filter objects",
+                    "type": "string",
+                    "example": "documents/"
+                }
+            }
+        },
+        "model.ObjectContent": {
+            "description": "Individual object information in list response",
+            "type": "object",
+            "properties": {
+                "etag": {
+                    "description": "ETag (hash) of the object",
+                    "type": "string",
+                    "example": "\"d41d8cd98f00b204e9800998ecf8427e\""
+                },
+                "key": {
+                    "description": "Object key (path)",
+                    "type": "string",
+                    "example": "documents/file.txt"
+                },
+                "lastModified": {
+                    "description": "Last modification time in RFC3339 format",
+                    "type": "string",
+                    "example": "2024-01-15T10:30:00Z"
+                },
+                "size": {
+                    "description": "Size in bytes",
+                    "type": "integer",
+                    "example": 1024
+                },
+                "storageClass": {
+                    "description": "Storage class",
+                    "type": "string",
+                    "example": "STANDARD"
+                }
+            }
+        },
+        "model.Owner": {
+            "description": "Owner information for S3 buckets",
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "description": "Display name of the owner",
+                    "type": "string",
+                    "example": "s3-storage"
+                },
+                "id": {
+                    "description": "Unique identifier of the owner",
+                    "type": "string",
+                    "example": "s3-storage"
+                }
+            }
+        },
+        "model.S3Error": {
+            "description": "S3-compatible error response returned on failure",
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Error code identifying the type of error",
+                    "type": "string",
+                    "example": "NoSuchBucket"
+                },
+                "message": {
+                    "description": "Human-readable error message",
+                    "type": "string",
+                    "example": "The specified bucket does not exist"
+                },
+                "requestId": {
+                    "description": "Unique request identifier for troubleshooting",
+                    "type": "string",
+                    "example": "4442587FB7D0A2F9"
+                },
+                "resource": {
+                    "description": "The resource associated with the error",
+                    "type": "string",
+                    "example": "my-bucket"
+                }
+            }
+        }
+    }
+}

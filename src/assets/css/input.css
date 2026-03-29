@@ -1,0 +1,280 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for S3 Storage Web UI */
+
+/* Orange color palette */
+:root {
+    --color-primary: #fb8c00;
+    --color-primary-hover: #f57c00;
+    --color-primary-dark: #e65100;
+    --color-primary-light: #fff3e0;
+    --color-primary-100: #ffe0b2;
+    --color-primary-200: #ffcc80;
+}
+
+/* File upload drop zone */
+.drop-zone {
+    border: 2px dashed #fb8c00;
+    transition: all 0.2s ease;
+    background: #fff;
+}
+
+.drop-zone:hover {
+    border-color: #f57c00;
+    background-color: #fff3e0;
+}
+
+.drop-zone.drag-over {
+    border-color: #f57c00;
+    background-color: #fff3e0;
+}
+
+/* Progress bar animation */
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Override Tailwind defaults where needed */
+@layer components {
+    .sidebar-link {
+        @apply flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-gray-800 rounded-lg transition-colors;
+    }
+
+    .sidebar-link.active {
+        background-color: #fff3e0;
+        color: #e65100;
+    }
+
+    /* Table styles */
+    .data-table {
+        @apply w-full text-sm text-left;
+    }
+
+    .data-table th {
+        @apply px-4 py-3 bg-gray-50 text-gray-700 font-semibold border-b;
+    }
+
+    .data-table td {
+        @apply px-4 py-3 border-b border-gray-100;
+    }
+
+    .data-table tr:hover {
+        @apply bg-gray-50;
+    }
+
+    /* Button styles */
+    .btn {
+        @apply px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+    }
+
+    .btn-primary {
+        background-color: #fb8c00;
+        @apply text-white;
+    }
+
+    .btn-primary:hover {
+        background-color: #f57c00;
+    }
+
+    .btn-primary:focus {
+        --tw-ring-color: #fb8c00;
+    }
+
+    .btn-secondary {
+        @apply bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-500;
+    }
+
+    .btn-danger {
+        @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+    }
+
+    .btn-success {
+        @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
+    }
+
+    .btn-sm {
+        @apply px-3 py-1.5 text-sm;
+    }
+
+    /* Card styles */
+    .card {
+        @apply bg-white rounded-lg shadow-sm border border-gray-200;
+    }
+
+    .card-header {
+        @apply px-6 py-4 border-b border-gray-200;
+    }
+
+    .card-body {
+        @apply p-6;
+    }
+
+    /* Form styles */
+    .form-input {
+        @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent;
+        --tw-ring-color: #fb8c00;
+    }
+
+    .form-input:focus {
+        --tw-ring-color: #fb8c00;
+    }
+
+    .form-label {
+        @apply block text-sm font-medium text-gray-700 mb-1;
+    }
+
+    /* Alert styles */
+    .alert {
+        @apply px-4 py-3 rounded-lg mb-4;
+    }
+
+    .alert-error {
+        @apply bg-red-50 text-red-700 border border-red-200;
+    }
+
+    .alert-success {
+        @apply bg-green-50 text-green-700 border border-green-200;
+    }
+
+    .alert-warning {
+        @apply bg-yellow-50 text-yellow-700 border border-yellow-200;
+    }
+
+    /* Modal styles */
+    .modal-backdrop {
+        @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+    }
+
+    .modal {
+        @apply bg-white rounded-lg shadow-xl max-w-md w-full mx-4;
+    }
+
+    .modal-header {
+        @apply px-6 py-4 border-b border-gray-200;
+    }
+
+    .modal-body {
+        @apply px-6 py-4;
+    }
+
+    .modal-footer {
+        @apply px-6 py-4 border-t border-gray-200 flex justify-end gap-3;
+    }
+
+    /* Stats card */
+    .stat-card {
+        @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    }
+
+    .stat-value {
+        @apply text-3xl font-bold text-gray-900;
+    }
+
+    .stat-label {
+        @apply text-sm text-gray-500 mt-1;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        @apply flex items-center text-sm text-gray-500;
+    }
+
+    .breadcrumb-separator {
+        @apply mx-2;
+    }
+
+    /* Badge */
+    .badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    }
+
+    .badge-blue,
+    .badge-primary {
+        background-color: #ffe0b2;
+        color: #e65100;
+    }
+
+    .badge-green {
+        @apply bg-green-100 text-green-800;
+    }
+
+    .badge-red {
+        @apply bg-red-100 text-red-800;
+    }
+
+    .badge-gray {
+        @apply bg-gray-100 text-gray-800;
+    }
+
+    /* Loading spinner */
+    .spinner {
+        @apply animate-spin h-5 w-5 border-2 border-t-transparent rounded-full;
+        border-color: #fb8c00;
+        border-top-color: transparent;
+    }
+
+    /* Toast notifications */
+    .toast-container {
+        @apply fixed bottom-4 right-4 z-50 flex flex-col gap-2;
+    }
+
+    .toast {
+        @apply px-4 py-3 rounded-lg shadow-lg text-white flex items-center gap-2;
+    }
+
+    .toast-success {
+        @apply bg-green-600;
+    }
+
+    .toast-error {
+        @apply bg-red-600;
+    }
+
+    .toast-info {
+        background-color: #fb8c00;
+    }
+
+    /* Primary orange utilities */
+    .bg-primary {
+        background-color: #fb8c00;
+    }
+
+    .bg-primary-light {
+        background-color: #fff3e0;
+    }
+
+    .bg-primary-100 {
+        background-color: #ffe0b2;
+    }
+
+    .text-primary {
+        color: #fb8c00;
+    }
+
+    .text-primary-dark {
+        color: #e65100;
+    }
+
+    .hover\:bg-primary-hover:hover {
+        background-color: #f57c00;
+    }
+
+    .hover\:text-primary-dark:hover {
+        color: #e65100;
+    }
+
+    .border-primary {
+        border-color: #fb8c00;
+    }
+
+    .ring-primary {
+        --tw-ring-color: #fb8c00;
+    }
+
+    /* Gradient background for body */
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #fff3e0, #ffffff);
+    }
+}

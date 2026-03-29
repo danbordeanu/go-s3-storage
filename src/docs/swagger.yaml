@@ -1,0 +1,736 @@
+definitions:
+  model.Bucket:
+    description: Individual bucket information
+    properties:
+      creationDate:
+        description: Date and time when the bucket was created in RFC3339 format
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      name:
+        description: Name of the bucket
+        example: my-bucket
+        type: string
+    type: object
+  model.Buckets:
+    description: Container for the list of buckets
+    properties:
+      bucket:
+        description: List of buckets
+        items:
+          $ref: '#/definitions/model.Bucket'
+        type: array
+    type: object
+  model.CommonPrefix:
+    description: Common prefix representing a virtual folder
+    properties:
+      prefix:
+        description: The prefix (folder path)
+        example: documents/
+        type: string
+    type: object
+  model.CreateShareLinkResponse:
+    properties:
+      bucket:
+        type: string
+      expires_at:
+        type: integer
+      expires_in:
+        type: integer
+      key:
+        type: string
+      share_url:
+        type: string
+      token:
+        type: string
+    type: object
+  model.ListAllMyBucketsResult:
+    description: Success response for ListBuckets operation containing owner info
+      and bucket list
+    properties:
+      buckets:
+        allOf:
+        - $ref: '#/definitions/model.Buckets'
+        description: Container for the list of buckets
+      owner:
+        allOf:
+        - $ref: '#/definitions/model.Owner'
+        description: Owner of the buckets
+    type: object
+  model.ListBucketResult:
+    description: Success response for ListObjects operation (S3 ListObjectsV2 compatible)
+    properties:
+      commonPrefixes:
+        description: Common prefixes (virtual folders) when using delimiter
+        items:
+          $ref: '#/definitions/model.CommonPrefix'
+        type: array
+      contents:
+        description: List of objects
+        items:
+          $ref: '#/definitions/model.ObjectContent'
+        type: array
+      delimiter:
+        description: Delimiter used to group common prefixes
+        example: /
+        type: string
+      isTruncated:
+        description: Indicates if the response is truncated
+        example: false
+        type: boolean
+      keyCount:
+        description: Number of keys returned
+        example: 10
+        type: integer
+      maxKeys:
+        description: Maximum number of keys returned
+        example: 1000
+        type: integer
+      name:
+        description: Name of the bucket
+        example: my-bucket
+        type: string
+      prefix:
+        description: Prefix used to filter objects
+        example: documents/
+        type: string
+    type: object
+  model.ObjectContent:
+    description: Individual object information in list response
+    properties:
+      etag:
+        description: ETag (hash) of the object
+        example: '"d41d8cd98f00b204e9800998ecf8427e"'
+        type: string
+      key:
+        description: Object key (path)
+        example: documents/file.txt
+        type: string
+      lastModified:
+        description: Last modification time in RFC3339 format
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      size:
+        description: Size in bytes
+        example: 1024
+        type: integer
+      storageClass:
+        description: Storage class
+        example: STANDARD
+        type: string
+    type: object
+  model.Owner:
+    description: Owner information for S3 buckets
+    properties:
+      displayName:
+        description: Display name of the owner
+        example: s3-storage
+        type: string
+      id:
+        description: Unique identifier of the owner
+        example: s3-storage
+        type: string
+    type: object
+  model.S3Error:
+    description: S3-compatible error response returned on failure
+    properties:
+      code:
+        description: Error code identifying the type of error
+        example: NoSuchBucket
+        type: string
+      message:
+        description: Human-readable error message
+        example: The specified bucket does not exist
+        type: string
+      requestId:
+        description: Unique request identifier for troubleshooting
+        example: 4442587FB7D0A2F9
+        type: string
+      resource:
+        description: The resource associated with the error
+        example: my-bucket
+        type: string
+    type: object
+info:
+  contact:
+    name: API Support
+  termsOfService: http://swagger.io/terms/
+paths:
+  /:
+    get:
+      description: Returns a list of all buckets owned by the authenticated sender
+        of the request
+      operationId: listbuckets
+      parameters:
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      - description: SHA256 hash of request payload or 'UNSIGNED-PAYLOAD' (required
+          if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Content-SHA256
+        type: string
+      produces:
+      - text/xml
+      responses:
+        "200":
+          description: List of all buckets with owner information
+          schema:
+            $ref: '#/definitions/model.ListAllMyBucketsResult'
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: List all buckets
+      tags:
+      - buckets
+  /{bucket}:
+    delete:
+      description: Deletes the specified bucket. The bucket must be empty before it
+        can be deleted
+      operationId: deletebucket
+      parameters:
+      - description: Name of the bucket to delete
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      - description: SHA256 hash of request payload or 'UNSIGNED-PAYLOAD' (required
+          if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Content-SHA256
+        type: string
+      produces:
+      - text/xml
+      responses:
+        "204":
+          description: Bucket deleted successfully
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "404":
+          description: Bucket not found
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "409":
+          description: Bucket not empty
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Delete a bucket
+      tags:
+      - buckets
+    get:
+      description: Returns a list of objects in the specified bucket (S3 ListObjectsV2
+        compatible)
+      operationId: listobjects
+      parameters:
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: S3 list API version (must be 2 for ListObjectsV2)
+        enum:
+        - 2
+        in: query
+        name: list-type
+        type: integer
+      - description: Limits the response to keys that begin with the specified prefix
+        in: query
+        name: prefix
+        type: string
+      - description: Character used to group keys (usually /)
+        in: query
+        name: delimiter
+        type: string
+      - default: 1000
+        description: Maximum number of keys returned
+        in: query
+        name: max-keys
+        type: integer
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      produces:
+      - text/xml
+      responses:
+        "200":
+          description: List of objects
+          schema:
+            $ref: '#/definitions/model.ListBucketResult'
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "404":
+          description: Bucket not found
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: List objects in a bucket
+      tags:
+      - objects
+    head:
+      description: Checks if a bucket exists and you have permission to access it
+      operationId: headbucket
+      parameters:
+      - description: Name of the bucket to check
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      - description: SHA256 hash of request payload or 'UNSIGNED-PAYLOAD' (required
+          if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Content-SHA256
+        type: string
+      responses:
+        "200":
+          description: Bucket exists
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "404":
+          description: Bucket not found
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Check if bucket exists
+      tags:
+      - buckets
+    put:
+      description: Creates a new S3 bucket with the specified name
+      operationId: createbucket
+      parameters:
+      - description: Name of the bucket to create
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      - description: SHA256 hash of request payload or 'UNSIGNED-PAYLOAD' (required
+          if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Content-SHA256
+        type: string
+      produces:
+      - text/xml
+      responses:
+        "200":
+          description: Bucket created successfully
+          headers:
+            Location:
+              description: The path to the created bucket
+              type: string
+        "400":
+          description: Invalid bucket name
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "409":
+          description: Bucket already exists
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Create a new bucket
+      tags:
+      - buckets
+  /{bucket}/{key}:
+    delete:
+      description: Deletes an object from the specified bucket
+      operationId: deleteobject
+      parameters:
+      - description: Name of the bucket
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object key (path)
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      responses:
+        "204":
+          description: Object deleted successfully
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "404":
+          description: Bucket or object not found
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Delete an object
+      tags:
+      - objects
+    get:
+      description: Retrieves an object from the specified bucket
+      operationId: getobject
+      parameters:
+      - description: Name of the bucket
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object key (path)
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: Object data
+          headers:
+            Content-Length:
+              description: Size of the object in bytes
+              type: string
+            Content-Type:
+              description: MIME type of the object
+              type: string
+            ETag:
+              description: MD5 hash of the object (quoted)
+              type: string
+            Last-Modified:
+              description: Last modification time (RFC1123 format)
+              type: string
+          schema:
+            type: file
+        "404":
+          description: Bucket or object not found
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Get an object
+      tags:
+      - objects
+    head:
+      description: Retrieves metadata for an object without downloading the object
+        data
+      operationId: headobject
+      parameters:
+      - description: Name of the bucket
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object key (path)
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Object metadata retrieved successfully (no body)
+          headers:
+            Content-Length:
+              description: Size of the object in bytes
+              type: string
+            Content-Type:
+              description: MIME type of the object
+              type: string
+            ETag:
+              description: MD5 hash of the object (quoted)
+              type: string
+            Last-Modified:
+              description: Last modification time (RFC1123 format)
+              type: string
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "404":
+          description: Bucket or object not found
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Retrieve object metadata
+      tags:
+      - objects
+    put:
+      consumes:
+      - '*/*'
+      description: Uploads an object to the specified bucket with the given key
+      operationId: putobject
+      parameters:
+      - description: Name of the bucket
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object key (path)
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: SHA256 hash of the request payload
+        in: header
+        name: X-Amz-Content-SHA256
+        required: true
+        type: string
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      produces:
+      - text/xml
+      responses:
+        "200":
+          description: Object uploaded successfully
+          headers:
+            ETag:
+              description: MD5 hash of the uploaded object
+              type: string
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "404":
+          description: Bucket not found
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Upload an object
+      tags:
+      - objects
+  /share/{token}:
+    delete:
+      description: Revokes a public share link by deleting it
+      operationId: deletesharelink
+      parameters:
+      - description: Share link token
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      responses:
+        "204":
+          description: Share link deleted successfully
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "404":
+          description: Share link not found
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Delete a share link
+      tags:
+      - sharing
+    get:
+      description: Downloads an object using a public share token without authentication
+      operationId: getsharedobject
+      parameters:
+      - description: Share link token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: Object data
+          headers:
+            Content-Length:
+              description: Size of the object in bytes
+              type: string
+            Content-Type:
+              description: MIME type of the object
+              type: string
+            ETag:
+              description: MD5 hash of the object (quoted)
+              type: string
+            Last-Modified:
+              description: Last modification time (RFC1123 format)
+              type: string
+          schema:
+            type: file
+        "403":
+          description: Share link expired
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "404":
+          description: Share link not found or object deleted
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Download an object via public share link
+      tags:
+      - sharing
+  /share/create/{bucket}/{key}:
+    post:
+      consumes:
+      - application/json
+      description: Generates a unique public link that allows downloading an object
+        without authentication
+      operationId: createsharelink
+      parameters:
+      - description: Name of the bucket
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object key (path)
+        in: path
+        name: key
+        required: true
+        type: string
+      - default: 0
+        description: Expiration time in seconds (0 for no expiration)
+        in: query
+        name: expires_in
+        type: integer
+      - description: AWS4-HMAC-SHA256 authorization header (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: Authorization
+        type: string
+      - description: Request timestamp in ISO 8601 format (required if S3_AUTH_ENABLED=true)
+        in: header
+        name: X-Amz-Date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Share link created successfully
+          schema:
+            $ref: '#/definitions/model.CreateShareLinkResponse'
+        "403":
+          description: Access denied or signature mismatch
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "404":
+          description: Bucket or object not found
+          schema:
+            $ref: '#/definitions/model.S3Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/model.S3Error'
+      summary: Create a public share link for an object
+      tags:
+      - sharing
+swagger: "2.0"

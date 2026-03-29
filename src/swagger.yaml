@@ -1,0 +1,4 @@
+version: "1.0"
+title: "S3-STORAGE"
+description: "S3 AWS STORAGE"
+basePath: /
