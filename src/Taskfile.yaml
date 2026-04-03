@@ -107,12 +107,6 @@ tasks:
       - |
         echo "Setting up Magika..."
 
-        # Skip if user provided their own path
-        if [ -n "$MAGIKA_ASSETS_DIR" ]; then
-          echo "Using user-provided Magika assets at: $MAGIKA_ASSETS_DIR"
-          exit 0
-        fi
-
         # Skip if already cloned
         if [ -d "{{.MAGIKA_DIR}}/assets" ]; then
           echo "Magika already cloned at {{.MAGIKA_DIR}}"
